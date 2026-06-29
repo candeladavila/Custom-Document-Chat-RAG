@@ -1,32 +1,32 @@
 # Custom Document Chat — RAG System with PDF Uploads
 
-Proyecto RAG local con:
+A local RAG project built with:
 
 ```text
 React + Vite
 FastAPI
 LangChain
-Embeddings locales con sentence-transformers
+Local embeddings with sentence-transformers
 Qdrant Cloud
 Gemini API
 ```
 
-La aplicación permite:
+The application allows users to:
 
 ```text
-1. Subir documentos PDF desde el frontend
-2. Guardarlos en backend/documentos/
-3. Extraer texto del PDF
-4. Extraer texto página a página
-5. Crear chunks con metadata
-6. Subir los chunks a Qdrant
-7. Preguntar desde un chat web
-8. Obtener respuestas generadas con Gemini usando los chunks recuperados
+1. Upload PDF documents from the frontend
+2. Save them in backend/documentos/
+3. Extract text from the PDF
+4. Extract text page by page
+5. Create chunks with metadata
+6. Upload the chunks to Qdrant
+7. Ask questions through a web chat
+8. Get answers generated with Gemini using the retrieved chunks
 ```
 
 ---
 
-## Estructura del proyecto
+## Project Structure
 
 ```text
 Proyecto-Prueba-RAG/
@@ -60,51 +60,51 @@ Proyecto-Prueba-RAG/
 
 ---
 
-## Flujo completo del RAG
+## Complete RAG Flow
 
 ```text
-Usuario sube PDF
+User uploads PDF
 ↓
-Frontend React llama a POST /upload-stream
+React frontend calls POST /upload-stream
 ↓
-Backend guarda el PDF en backend/documentos/
+Backend saves the PDF in backend/documentos/
 ↓
-01_liteparse_pdf_a_txt.py extrae texto y páginas
+01_liteparse_pdf_a_txt.py extracts text and pages
 ↓
-02_langchain_chunking.py crea chunks con metadata
+02_langchain_chunking.py creates chunks with metadata
 ↓
-05_subir_chunks_a_qdrant.py crea embeddings y sube chunks a Qdrant
+05_subir_chunks_a_qdrant.py creates embeddings and uploads chunks to Qdrant
 ↓
-Usuario pregunta en el chat
+User asks a question in the chat
 ↓
-Frontend llama a POST /ask
+Frontend calls POST /ask
 ↓
-Backend crea embedding de la pregunta
+Backend creates an embedding of the question
 ↓
-Qdrant devuelve chunks relevantes
+Qdrant returns relevant chunks
 ↓
-Gemini genera respuesta final usando esos chunks
+Gemini generates the final answer using those chunks
 ↓
-Frontend muestra respuesta y fuentes
+Frontend displays the answer and sources
 ```
 
 ---
 
-## 1. Crear entorno virtual
+## 1. Create a Virtual Environment
 
-Desde la raíz del proyecto:
+From the project root:
 
 ```bash
 python3 -m venv .venv
 ```
 
-Activar entorno virtual:
+Activate the virtual environment:
 
 ```bash
 source .venv/bin/activate
 ```
 
-En Windows:
+On Windows:
 
 ```bash
 .venv\Scripts\activate
@@ -112,9 +112,9 @@ En Windows:
 
 ---
 
-## 2. Instalar dependencias del backend
+## 2. Install Backend Dependencies
 
-Desde la raíz:
+From the project root:
 
 ```bash
 cd backend
@@ -122,13 +122,13 @@ source ../.venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Si falta alguna dependencia, instala:
+If any dependency is missing, install:
 
 ```bash
 pip install fastapi "uvicorn[standard]" python-multipart python-dotenv qdrant-client langchain-text-splitters langchain-huggingface sentence-transformers google-genai pypdf numpy
 ```
 
-El archivo `backend/requirements.txt` debería incluir:
+The `backend/requirements.txt` file should include:
 
 ```txt
 liteparse
@@ -147,22 +147,22 @@ python-multipart
 
 ---
 
-## 3. Configurar variables de entorno del backend
+## 3. Configure Backend Environment Variables
 
-Crear archivo:
+Create the file:
 
 ```text
 backend/.env
 ```
 
-Contenido recomendado:
+Recommended content:
 
 ```env
-QDRANT_URL=https://TU_CLUSTER.qdrant.io
-QDRANT_API_KEY=TU_API_KEY_QDRANT
+QDRANT_URL=https://YOUR_CLUSTER.qdrant.io
+QDRANT_API_KEY=YOUR_QDRANT_API_KEY
 QDRANT_COLLECTION=documentos_rag
 
-GEMINI_API_KEY=TU_API_KEY_GEMINI
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 GEMINI_MODEL=gemini-2.5-flash-lite
 
 RAG_TOP_K=3
@@ -171,31 +171,31 @@ RAG_MAX_CONTEXT_CHARS=5000
 EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 ```
 
-Importante:
+Important:
 
 ```text
-No subir .env a GitHub.
-No poner claves privadas en el frontend.
+Do not upload .env to GitHub.
+Do not put private keys in the frontend.
 ```
 
 ---
 
-## 4. Configurar frontend
+## 4. Configure the Frontend
 
-Desde la raíz:
+From the project root:
 
 ```bash
 cd frontend
 npm install
 ```
 
-Crear archivo:
+Create the file:
 
 ```text
 frontend/.env.local
 ```
 
-Contenido:
+Content:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8000
@@ -203,9 +203,9 @@ VITE_API_URL=http://127.0.0.1:8000
 
 ---
 
-## 5. Arrancar backend
+## 5. Start the Backend
 
-Desde la raíz:
+From the project root:
 
 ```bash
 cd backend
@@ -213,19 +213,19 @@ source ../.venv/bin/activate
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Backend disponible en:
+Backend available at:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-Comprobar salud del backend:
+Check backend health:
 
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
-Respuesta esperada:
+Expected response:
 
 ```json
 {"status":"ok"}
@@ -233,16 +233,16 @@ Respuesta esperada:
 
 ---
 
-## 6. Arrancar frontend
+## 6. Start the Frontend
 
-En otra terminal, desde la raíz:
+In another terminal, from the project root:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Frontend disponible normalmente en:
+The frontend is usually available at:
 
 ```text
 http://localhost:5173
@@ -250,11 +250,11 @@ http://localhost:5173
 
 ---
 
-## 7. Endpoints del backend
+## 7. Backend Endpoints
 
 ### `GET /health`
 
-Comprueba que el backend está vivo.
+Checks whether the backend is running.
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -264,72 +264,72 @@ curl http://127.0.0.1:8000/health
 
 ### `POST /upload-stream`
 
-Sube un PDF, lo guarda en `backend/documentos/`, lo procesa y lo sube a Qdrant.
+Uploads a PDF, saves it in `backend/documentos/`, processes it and uploads it to Qdrant.
 
-Este endpoint devuelve progreso paso a paso en formato NDJSON.
+This endpoint returns step-by-step progress in NDJSON format.
 
-Flujo interno:
+Internal flow:
 
 ```text
-Guardar PDF
+Save PDF
 ↓
-Extraer texto
+Extract text
 ↓
-Crear chunks
+Create chunks
 ↓
-Subir chunks a Qdrant
+Upload chunks to Qdrant
 ↓
-Finalizar
+Finish
 ```
 
-Prueba con `curl`:
+Test with `curl`:
 
 ```bash
 curl -N -X POST "http://127.0.0.1:8000/upload-stream" \
-  -F "file=@/ruta/a/tu/documento.pdf"
+  -F "file=@/path/to/your/document.pdf"
 ```
 
-Ejemplo de respuesta:
+Example response:
 
 ```json
-{"status":"progress","step":"save","message":"Guardando PDF: documento.pdf"}
-{"status":"progress","step":"parse","message":"Extrayendo texto del PDF..."}
-{"status":"progress","step":"chunks","message":"Creando chunks con metadata..."}
-{"status":"progress","step":"qdrant","message":"Subiendo chunks a Qdrant..."}
-{"status":"done","step":"done","message":"PDF \"documento.pdf\" procesado e indexado correctamente."}
+{"status":"progress","step":"save","message":"Saving PDF: document.pdf"}
+{"status":"progress","step":"parse","message":"Extracting text from the PDF..."}
+{"status":"progress","step":"chunks","message":"Creating chunks with metadata..."}
+{"status":"progress","step":"qdrant","message":"Uploading chunks to Qdrant..."}
+{"status":"done","step":"done","message":"PDF \"document.pdf\" processed and indexed successfully."}
 ```
 
 ---
 
 ### `POST /ask`
 
-Recibe una pregunta y devuelve respuesta generada con Gemini usando Qdrant como fuente documental.
+Receives a question and returns an answer generated with Gemini using Qdrant as the document source.
 
 Request:
 
 ```json
 {
-  "question": "cuando se fundó Mercedes-Benz",
+  "question": "when was Mercedes-Benz founded",
   "top_k": 3
 }
 ```
 
-Prueba con `curl`:
+Test with `curl`:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/ask" \
   -H "Content-Type: application/json" \
-  -d '{"question": "cuando se fundó Mercedes-Benz", "top_k": 3}'
+  -d '{"question": "when was Mercedes-Benz founded", "top_k": 3}'
 ```
 
-Respuesta esperada:
+Expected response:
 
 ```json
 {
-  "answer": "Respuesta generada por Gemini...",
+  "answer": "Answer generated by Gemini...",
   "sources": [
     {
-      "filename": "documento.pdf",
+      "filename": "document.pdf",
       "page": "1",
       "chunk_index": "0",
       "score": 0.78
@@ -340,24 +340,24 @@ Respuesta esperada:
 
 ---
 
-## 8. Subir PDFs desde el frontend
+## 8. Upload PDFs from the Frontend
 
-En la interfaz web:
+In the web interface:
 
 ```text
-1. Pulsar “Elegir PDF”
-2. Seleccionar un archivo .pdf
-3. Pulsar “Subir”
-4. Esperar a que el chat muestre:
-   - Guardando PDF
-   - Extrayendo texto
-   - Creando chunks
-   - Subiendo chunks a Qdrant
-   - PDF procesado correctamente
-5. Preguntar sobre el documento en el chat
+1. Click “Choose PDF”
+2. Select a .pdf file
+3. Click “Upload”
+4. Wait for the chat to show:
+   - Saving PDF
+   - Extracting text
+   - Creating chunks
+   - Uploading chunks to Qdrant
+   - PDF processed successfully
+5. Ask questions about the document in the chat
 ```
 
-Los PDFs se guardan en:
+PDFs are saved in:
 
 ```text
 backend/documentos/
@@ -365,26 +365,26 @@ backend/documentos/
 
 ---
 
-## 9. Scripts del backend
+## 9. Backend Scripts
 
 ### `01_liteparse_pdf_a_txt.py`
 
-Convierte PDFs en texto y genera extracción página a página.
+Converts PDFs into text and generates page-by-page extraction.
 
-Entrada:
+Input:
 
 ```text
 backend/documentos/*.pdf
 ```
 
-Salida:
+Output:
 
 ```text
 backend/documentos-parseados/*.txt
 backend/documentos-parseados/*.pages.jsonl
 ```
 
-Ejecutar manualmente:
+Run manually:
 
 ```bash
 cd backend
@@ -396,21 +396,21 @@ python 01_liteparse_pdf_a_txt.py
 
 ### `02_langchain_chunking.py`
 
-Lee los archivos `.pages.jsonl` y genera chunks con metadata.
+Reads `.pages.jsonl` files and generates chunks with metadata.
 
-Entrada:
+Input:
 
 ```text
 backend/documentos-parseados/*.pages.jsonl
 ```
 
-Salida:
+Output:
 
 ```text
 backend/chunks/chunks.jsonl
 ```
 
-Ejecutar manualmente:
+Run manually:
 
 ```bash
 python 02_langchain_chunking.py
@@ -420,21 +420,21 @@ python 02_langchain_chunking.py
 
 ### `03_embeddings_locales.py`
 
-Genera embeddings locales a partir de los chunks.
+Generates local embeddings from the chunks.
 
-Entrada:
+Input:
 
 ```text
 backend/chunks/chunks.jsonl
 ```
 
-Salida:
+Output:
 
 ```text
 backend/embeddings/embeddings.npy
 ```
 
-Ejecutar manualmente:
+Run manually:
 
 ```bash
 python 03_embeddings_locales.py
@@ -444,9 +444,9 @@ python 03_embeddings_locales.py
 
 ### `04_busqueda_semantica.py`
 
-Permite probar búsqueda semántica local sin Qdrant.
+Allows local semantic search testing without Qdrant.
 
-Ejecutar:
+Run:
 
 ```bash
 python 04_busqueda_semantica.py
@@ -456,59 +456,59 @@ python 04_busqueda_semantica.py
 
 ### `05_subir_chunks_a_qdrant.py`
 
-Lee `chunks/chunks.jsonl`, genera embeddings y sube los chunks a Qdrant.
+Reads `chunks/chunks.jsonl`, generates embeddings and uploads the chunks to Qdrant.
 
-También:
+It also:
 
 ```text
-- Comprueba que la colección existe
-- Valida la dimensión vectorial
-- Crea el índice payload document_id si hace falta
-- Borra chunks antiguos del mismo document_id
-- Sube los chunks nuevos
+- Checks whether the collection exists
+- Validates the vector dimension
+- Creates the document_id payload index if needed
+- Deletes old chunks with the same document_id
+- Uploads the new chunks
 ```
 
-Ejecutar:
+Run:
 
 ```bash
 python 05_subir_chunks_a_qdrant.py
 ```
 
-Probar búsqueda después de subir:
+Test search after uploading:
 
 ```bash
-python 05_subir_chunks_a_qdrant.py --query "cuando se fundó Mercedes-Benz" --top-k 5
+python 05_subir_chunks_a_qdrant.py --query "when was Mercedes-Benz founded" --top-k 5
 ```
 
 ---
 
 ### `06_ask_rag.py`
 
-Realiza el flujo RAG completo en modo script:
+Runs the full RAG flow in script mode:
 
 ```text
-Pregunta
+Question
 ↓
-Embedding local de la pregunta
+Local embedding of the question
 ↓
-Búsqueda en Qdrant
+Search in Qdrant
 ↓
-Construcción de contexto
+Context construction
 ↓
-Respuesta con Gemini
+Answer with Gemini
 ```
 
-Ejecutar:
+Run:
 
 ```bash
-python 06_ask_rag.py "cuando se fundó Mercedes-Benz" --show-sources
+python 06_ask_rag.py "when was Mercedes-Benz founded" --show-sources
 ```
 
 ---
 
-## 10. Rehacer completamente la colección de Qdrant
+## 10. Completely Recreate the Qdrant Collection
 
-Si quieres borrar la colección completa y recrearla desde cero:
+If you want to delete the entire collection and recreate it from scratch:
 
 ```bash
 cd backend
@@ -516,43 +516,43 @@ source ../.venv/bin/activate
 python 05_subir_chunks_a_qdrant.py --recreate-collection
 ```
 
-También puedes recrearla y hacer una búsqueda de prueba:
+You can also recreate it and run a test search:
 
 ```bash
-python 05_subir_chunks_a_qdrant.py --recreate-collection --query "cuando se fundó Mercedes-Benz" --top-k 5
+python 05_subir_chunks_a_qdrant.py --recreate-collection --query "when was Mercedes-Benz founded" --top-k 5
 ```
 
-Usar este comando cuando:
+Use this command when:
 
 ```text
-- Cambias el modelo de embeddings
-- Cambias la dimensión vectorial
-- La colección quedó inconsistente
-- Quieres borrar datos antiguos
-- Quieres preparar una demo desde cero
+- You change the embedding model
+- You change the vector dimension
+- The collection became inconsistent
+- You want to delete old data
+- You want to prepare a demo from scratch
 ```
 
 ---
 
-## 11. Limpieza parcial de Qdrant
+## 11. Partial Cleanup in Qdrant
 
-El flujo normal no borra toda la colección.
+The normal flow does not delete the whole collection.
 
-Cuando subes un documento con el mismo `document_id`, el script:
+When you upload a document with the same `document_id`, the script:
 
 ```text
-1. Busca chunks antiguos con ese document_id
-2. Los borra
-3. Sube los chunks nuevos
+1. Finds old chunks with that document_id
+2. Deletes them
+3. Uploads the new chunks
 ```
 
-Para que esto funcione en Qdrant Cloud, el script crea un índice de payload:
+For this to work in Qdrant Cloud, the script creates a payload index:
 
 ```text
 document_id → keyword
 ```
 
-Esto evita errores como:
+This prevents errors such as:
 
 ```text
 Index required but not found for "document_id" of type keyword
@@ -560,16 +560,16 @@ Index required but not found for "document_id" of type keyword
 
 ---
 
-## 12. Metadata de los chunks
+## 12. Chunk Metadata
 
-Cada chunk se guarda con metadata útil para trazabilidad.
+Each chunk is stored with useful metadata for traceability.
 
-Ejemplo:
+Example:
 
 ```json
 {
   "id": "bmw_informacion_rag_p001_c000",
-  "text": "Texto del chunk...",
+  "text": "Chunk text...",
   "metadata": {
     "source": "bmw_informacion_rag.pdf",
     "filename": "bmw_informacion_rag.pdf",
@@ -577,7 +577,7 @@ Ejemplo:
     "source_type": "pdf",
     "page": 1,
     "page_label": "1",
-    "language": "es",
+    "language": "en",
     "chunk_index": 0,
     "chunk_index_in_page": 0,
     "chunk_size": 921
@@ -585,7 +585,7 @@ Ejemplo:
 }
 ```
 
-En Qdrant, el payload queda con campos como:
+In Qdrant, the payload contains fields such as:
 
 ```text
 text
@@ -601,17 +601,17 @@ chunk_index_in_page
 chunk_size
 ```
 
-Esto permite mostrar fuentes en la respuesta:
+This makes it possible to display sources in the answer:
 
 ```text
-bmw_informacion_rag.pdf, página 3
+bmw_informacion_rag.pdf, page 3
 ```
 
 ---
 
-## 13. Configuración recomendada para Gemini
+## 13. Recommended Gemini Configuration
 
-En `backend/.env`:
+In `backend/.env`:
 
 ```env
 GEMINI_MODEL=gemini-2.5-flash-lite
@@ -619,30 +619,30 @@ RAG_TOP_K=3
 RAG_MAX_CONTEXT_CHARS=5000
 ```
 
-Si Gemini devuelve error 503:
+If Gemini returns a 503 error:
 
 ```text
 503 UNAVAILABLE
 This model is currently experiencing high demand
 ```
 
-No significa que el proyecto esté mal. Significa que Gemini está saturado temporalmente.
+It does not mean the project is wrong. It means Gemini is temporarily overloaded.
 
-Soluciones:
+Solutions:
 
 ```text
-- Esperar unos segundos y reintentar
-- Reducir RAG_TOP_K
-- Reducir RAG_MAX_CONTEXT_CHARS
-- Usar gemini-2.5-flash-lite
-- Añadir fallback a otro proveedor como Groq
+- Wait a few seconds and retry
+- Reduce RAG_TOP_K
+- Reduce RAG_MAX_CONTEXT_CHARS
+- Use gemini-2.5-flash-lite
+- Add a fallback to another provider such as Groq
 ```
 
 ---
 
-## 14. Git y seguridad
+## 14. Git and Security
 
-No subir al repositorio:
+Do not upload these files or folders to the repository:
 
 ```text
 .env
@@ -656,13 +656,13 @@ backend/chunks/
 backend/documentos-parseados/
 ```
 
-Opcionalmente, si no quieres subir PDFs al repo:
+Optionally, if you do not want to upload PDFs to the repository:
 
 ```text
 backend/documentos/
 ```
 
-Ejemplo de `.gitignore`:
+Example `.gitignore`:
 
 ```gitignore
 .env
@@ -681,49 +681,49 @@ frontend/node_modules/
 frontend/.env.local
 ```
 
-Si alguna API key se subió a GitHub por error:
+If an API key was accidentally uploaded to GitHub:
 
 ```text
-1. Revocar la key
-2. Crear una nueva
-3. Actualizar .env local
+1. Revoke the key
+2. Create a new one
+3. Update your local .env file
 ```
 
 ---
 
-## 15. Comandos útiles
+## 15. Useful Commands
 
-### Activar entorno virtual desde backend
+### Activate the Virtual Environment from Backend
 
 ```bash
 source ../.venv/bin/activate
 ```
 
-### Comprobar que usas la venv correcta
+### Check That You Are Using the Correct Virtual Environment
 
 ```bash
 which python
 ```
 
-Debe salir algo parecido a:
+It should return something similar to:
 
 ```text
 /Users/candeladavilamoreno/Documents/GitHub/Proyecto-Prueba-RAG/.venv/bin/python
 ```
 
-### Comprobar configuración cargada
+### Check Loaded Configuration
 
 ```bash
 python -c "from config import GEMINI_MODEL, RAG_TOP_K, RAG_MAX_CONTEXT_CHARS; print(GEMINI_MODEL, RAG_TOP_K, RAG_MAX_CONTEXT_CHARS)"
 ```
 
-Salida esperada:
+Expected output:
 
 ```text
 gemini-2.5-flash-lite 3 5000
 ```
 
-### Arrancar backend
+### Start Backend
 
 ```bash
 cd backend
@@ -731,29 +731,29 @@ source ../.venv/bin/activate
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### Arrancar frontend
+### Start Frontend
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-### Probar subida de PDF
+### Test PDF Upload
 
 ```bash
 curl -N -X POST "http://127.0.0.1:8000/upload-stream" \
-  -F "file=@/ruta/a/tu/documento.pdf"
+  -F "file=@/path/to/your/document.pdf"
 ```
 
-### Probar pregunta
+### Test a Question
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/ask" \
   -H "Content-Type: application/json" \
-  -d '{"question": "cuando se fundó Mercedes-Benz", "top_k": 3}'
+  -d '{"question": "when was Mercedes-Benz founded", "top_k": 3}'
 ```
 
-### Rehacer colección de Qdrant
+### Recreate the Qdrant Collection
 
 ```bash
 cd backend
@@ -763,37 +763,37 @@ python 05_subir_chunks_a_qdrant.py --recreate-collection
 
 ---
 
-## 16. Estado actual del proyecto
+## 16. Current Project Status
 
-El proyecto ya permite:
+The project currently supports:
 
 ```text
-- Crear frontend React con chat
-- Subir PDFs desde la interfaz
-- Mostrar progreso de procesamiento en el chat
-- Guardar PDFs en backend/documentos/
-- Extraer texto de PDFs
-- Crear chunks con metadata
-- Crear embeddings locales
-- Crear/verificar colección de Qdrant
-- Crear índice payload para document_id
-- Borrar chunks antiguos por document_id
-- Subir chunks nuevos a Qdrant
-- Preguntar desde el chat
-- Recuperar chunks relevantes
-- Generar respuesta final con Gemini
-- Mostrar fuentes de los chunks usados
+- Creating a React chat frontend
+- Uploading PDFs from the interface
+- Showing document processing progress in the chat
+- Saving PDFs in backend/documentos/
+- Extracting text from PDFs
+- Creating chunks with metadata
+- Creating local embeddings
+- Creating/verifying a Qdrant collection
+- Creating a payload index for document_id
+- Deleting old chunks by document_id
+- Uploading new chunks to Qdrant
+- Asking questions from the chat
+- Retrieving relevant chunks
+- Generating final answers with Gemini
+- Showing the sources used by the retrieved chunks
 ```
 
 ---
 
-## 17. Próximos pasos recomendados
+## 17. Recommended Next Steps
 
 ```text
-1. Mejorar diseño del chat
-2. Añadir botón para borrar documentos
-3. Añadir indicador de si Qdrant está conectado
-4. Añadir fallback a Groq si Gemini devuelve 503
-5. Convertir scripts en funciones Python en vez de ejecutarlos con subprocess
-6. Desplegar frontend y backend
+1. Improve the chat design
+2. Add a button to delete documents
+3. Add an indicator showing whether Qdrant is connected
+4. Add a fallback to Groq if Gemini returns 503
+5. Convert scripts into Python functions instead of running them with subprocess
+6. Deploy the frontend and backend
 ```
