@@ -63,6 +63,7 @@ app.add_middleware(
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
+    document_ids: list[str] = Field(default_factory=list)
 
 
 class Source(BaseModel):
@@ -77,18 +78,16 @@ class AskResponse(BaseModel):
     sources: list[Source]
 
 
-class UploadResponse(BaseModel):
-    message: str
+class DocumentItem(BaseModel):
+    document_id: str
     filename: str
-    saved_to: str
-    parsed: bool
-    chunked: bool
+
+
+class DocumentsResponse(BaseModel):
+    documents: list[DocumentItem]
 
 
 def sanitize_filename(filename: str) -> str:
-    """
-    Evita nombres peligrosos y mantiene solo caracteres seguros.
-    """
     name = Path(filename).name
     safe_chars = []
 
@@ -106,11 +105,11 @@ def sanitize_filename(filename: str) -> str:
     return safe_name
 
 
+def document_id_from_filename(filename: str) -> str:
+    return Path(filename).stem
+
+
 def run_script(script_path: Path) -> str:
-    """
-    Ejecuta un script Python dentro de backend/.
-    Usamos sys.executable para asegurar que usa la .venv activa.
-    """
     if not script_path.exists():
         raise RuntimeError(f"No existe el script: {script_path.name}")
 
@@ -130,6 +129,7 @@ def run_script(script_path: Path) -> str:
 
     return result.stdout
 
+
 def progress_event(status: str, message: str, step: str | None = None) -> str:
     return json.dumps(
         {
@@ -140,20 +140,6 @@ def progress_event(status: str, message: str, step: str | None = None) -> str:
         ensure_ascii=False,
     ) + "\n"
 
-def process_uploaded_documents() -> None:
-    """
-    Ejecuta los pasos automáticos tras subir un PDF:
-
-    Paso 1: PDF -> TXT + pages.jsonl
-    Paso 2: pages.jsonl -> chunks.jsonl
-
-    Si quieres que el documento quede disponible inmediatamente para el chat,
-    puedes activar también el paso de Qdrant al final.
-    """
-    run_script(SCRIPT_PARSE_PATH)
-    run_script(SCRIPT_CHUNKS_PATH)
-    run_script(SCRIPT_QDRANT_PATH)
-
 
 @app.get("/")
 def root() -> dict[str, str]:
@@ -161,13 +147,31 @@ def root() -> dict[str, str]:
         "status": "ok",
         "message": "Backend RAG funcionando",
         "ask_endpoint": "POST /ask",
-        "upload_endpoint": "POST /upload",
+        "upload_endpoint": "POST /upload-stream",
+        "documents_endpoint": "GET /documents",
     }
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/documents", response_model=DocumentsResponse)
+def list_documents() -> DocumentsResponse:
+    DOCUMENTOS_DIR.mkdir(parents=True, exist_ok=True)
+
+    documents = []
+
+    for pdf_path in sorted(DOCUMENTOS_DIR.glob("*.pdf")):
+        documents.append(
+            DocumentItem(
+                document_id=document_id_from_filename(pdf_path.name),
+                filename=pdf_path.name,
+            )
+        )
+
+    return DocumentsResponse(documents=documents)
 
 
 @app.post("/upload-stream")
@@ -242,9 +246,16 @@ async def upload_pdf_stream(file: UploadFile = File(...)):
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
     question = request.question.strip()
+    document_ids = [doc_id.strip() for doc_id in request.document_ids if doc_id.strip()]
 
     if not question:
         raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía.")
+
+    if not document_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Selecciona al menos un documento como fuente.",
+        )
 
     try:
         rag.validate_config()
@@ -252,11 +263,12 @@ def ask(request: AskRequest) -> AskResponse:
         chunks: list[dict[str, Any]] = rag.search_qdrant(
             question=question,
             top_k=request.top_k,
+            document_ids=document_ids,
         )
 
         if not chunks:
             return AskResponse(
-                answer="No he encontrado información relevante en los documentos.",
+                answer="No he encontrado información relevante en los documentos seleccionados.",
                 sources=[],
             )
 
@@ -296,16 +308,10 @@ def ask(request: AskRequest) -> AskResponse:
         error_text = str(error)
 
         if "Gemini está saturado" in error_text:
-            raise HTTPException(
-                status_code=503,
-                detail=error_text,
-            )
+            raise HTTPException(status_code=503, detail=error_text)
 
         if "límite temporal de Gemini" in error_text:
-            raise HTTPException(
-                status_code=429,
-                detail=error_text,
-            )
+            raise HTTPException(status_code=429, detail=error_text)
 
         raise HTTPException(
             status_code=500,

@@ -2,12 +2,9 @@ import argparse
 import sys
 from typing import Any
 
-import time
-import random
-
 from google import genai
 from langchain_huggingface import HuggingFaceEmbeddings
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, models
 
 from config import (
     EMBEDDING_MODEL,
@@ -51,15 +48,41 @@ def get_embeddings() -> HuggingFaceEmbeddings:
     )
 
 
-def search_qdrant(question: str, top_k: int) -> list[dict[str, Any]]:
+def build_document_filter(document_ids: list[str] | None):
+    if not document_ids:
+        return None
+
+    should_conditions = []
+
+    for document_id in document_ids:
+        should_conditions.append(
+            models.FieldCondition(
+                key="document_id",
+                match=models.MatchValue(value=document_id),
+            )
+        )
+
+    return models.Filter(
+        should=should_conditions,
+    )
+
+
+def search_qdrant(
+    question: str,
+    top_k: int,
+    document_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
     embeddings = get_embeddings()
     query_vector = embeddings.embed_query(question)
 
     client = get_qdrant_client()
 
+    query_filter = build_document_filter(document_ids)
+
     results = client.query_points(
         collection_name=QDRANT_COLLECTION,
         query=query_vector,
+        query_filter=query_filter,
         limit=top_k,
         with_payload=True,
     )
@@ -98,6 +121,7 @@ def format_context(chunks: list[dict[str, Any]], max_chars: int) -> str:
         block = f"""
 [Fuente {index}]
 Archivo: {chunk["filename"]}
+Documento ID: {chunk["document_id"]}
 Página: {chunk["page_label"]}
 Chunk: {chunk["chunk_index"]}
 Score: {chunk["score"]:.4f}
@@ -136,53 +160,56 @@ PREGUNTA:
 RESPUESTA:
 """.strip()
 
+
 def ask_gemini(prompt: str) -> str:
+    import time
+    import random
+
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    max_retries = 3
+    models_to_try = [
+        GEMINI_MODEL,
+    ]
 
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-            )
+    max_retries_per_model = 3
+    last_error = None
 
-            return response.text or ""
-
-        except Exception as error:
-            error_text = str(error)
-
-            is_retryable_error = (
-                "503" in error_text
-                or "UNAVAILABLE" in error_text
-                or "429" in error_text
-                or "RESOURCE_EXHAUSTED" in error_text
-            )
-
-            if is_retryable_error and attempt < max_retries - 1:
-                wait_seconds = (2 ** attempt) + random.uniform(0, 1)
-                print(
-                    f"Gemini saturado o con límite temporal. "
-                    f"Reintentando en {wait_seconds:.1f}s..."
-                )
-                time.sleep(wait_seconds)
-                continue
-
-            if "503" in error_text or "UNAVAILABLE" in error_text:
-                raise RuntimeError(
-                    "Gemini está saturado temporalmente. "
-                    "Espera unos segundos y vuelve a intentarlo. "
-                    "También puedes usar GEMINI_MODEL=gemini-2.5-flash-lite."
+    for model_name in models_to_try:
+        for attempt in range(max_retries_per_model):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
                 )
 
-            if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
-                raise RuntimeError(
-                    "Has alcanzado un límite temporal de Gemini API. "
-                    "Espera un poco y vuelve a intentarlo."
+                return response.text or ""
+
+            except Exception as error:
+                last_error = error
+                error_text = str(error)
+
+                is_retryable_error = (
+                    "503" in error_text
+                    or "UNAVAILABLE" in error_text
+                    or "429" in error_text
+                    or "RESOURCE_EXHAUSTED" in error_text
                 )
 
-            raise
+                if is_retryable_error and attempt < max_retries_per_model - 1:
+                    wait_seconds = (2 ** attempt) + random.uniform(0, 1)
+                    print(
+                        f"Gemini no disponible temporalmente. "
+                        f"Reintentando en {wait_seconds:.1f}s..."
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+
+                break
+
+    raise RuntimeError(
+        "Gemini no está disponible ahora mismo o ha alcanzado un límite temporal. "
+        f"Último error: {last_error}"
+    )
 
 
 def print_sources(chunks: list[dict[str, Any]]) -> None:
@@ -192,6 +219,7 @@ def print_sources(chunks: list[dict[str, Any]]) -> None:
     for i, chunk in enumerate(chunks, start=1):
         print(
             f"{i}. {chunk['filename']} | "
+            f"document_id {chunk['document_id']} | "
             f"página {chunk['page_label']} | "
             f"score {chunk['score']:.4f}"
         )
@@ -217,6 +245,13 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--document-id",
+        action="append",
+        default=[],
+        help="Document ID a usar como fuente. Puedes repetirlo varias veces.",
+    )
+
+    parser.add_argument(
         "--show-sources",
         action="store_true",
         help="Muestra los chunks recuperados desde Qdrant.",
@@ -236,7 +271,12 @@ def main() -> None:
     validate_config()
 
     print("Buscando chunks relevantes en Qdrant...")
-    chunks = search_qdrant(question, top_k=args.top_k)
+
+    chunks = search_qdrant(
+        question=question,
+        top_k=args.top_k,
+        document_ids=args.document_id,
+    )
 
     if not chunks:
         print("No se han encontrado chunks relevantes en Qdrant.")
