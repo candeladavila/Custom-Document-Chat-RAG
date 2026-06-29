@@ -2,3 +2,6 @@ liteparse
 langchain-text-splitters
 sentence-transformers
 numpy
+qdrant-client
+python-dotenv
+pypdf
