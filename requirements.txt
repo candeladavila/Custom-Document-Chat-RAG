@@ -1,0 +1,12 @@
+liteparse
+langchain-text-splitters
+sentence-transformers
+numpy
+qdrant-client
+python-dotenv
+pypdf
+google-genai
+langchain-huggingface
+fastapi
+uvicorn[standard]
+python-multipart

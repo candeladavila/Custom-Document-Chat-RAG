@@ -7,18 +7,145 @@ function App() {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      text: "Hola. Soy tu asistente RAG. Hazme una pregunta sobre los documentos cargados.",
+      text: "Hola. Soy tu asistente RAG. Sube un PDF o hazme una pregunta sobre los documentos ya indexados.",
       sources: [],
     },
   ]);
 
   const [question, setQuestion] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+
+  async function uploadPdf() {
+  if (!selectedFile || isUploadingFile) {
+    return;
+  }
+
+  if (selectedFile.type !== "application/pdf") {
+    setUploadMessage("Solo puedes subir archivos PDF.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  const uploadMessageId =
+    crypto.randomUUID?.() || `upload-${Date.now().toString()}`;
+
+  setIsUploadingFile(true);
+  setUploadMessage("Subiendo PDF...");
+
+  setMessages((previousMessages) => [
+    ...previousMessages,
+    {
+      id: uploadMessageId,
+      role: "assistant",
+      text: `Preparando subida de "${selectedFile.name}"...`,
+      sources: [],
+      isProgress: true,
+    },
+  ]);
+
+  function updateUploadBubble(text) {
+    setMessages((previousMessages) =>
+      previousMessages.map((message) =>
+        message.id === uploadMessageId
+          ? {
+              ...message,
+              text,
+            }
+          : message
+      )
+    );
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/upload-stream`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const errorMessage = errorData?.detail || "Error subiendo el archivo.";
+      throw new Error(errorMessage);
+    }
+
+    if (!response.body) {
+      throw new Error("El backend no devolvió un stream de progreso.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    let buffer = "";
+    let progressLines = [];
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.trim()) {
+          continue;
+        }
+
+        const event = JSON.parse(line);
+
+        if (event.status === "progress") {
+          progressLines.push(`• ${event.message}`);
+          updateUploadBubble(progressLines.join("\n"));
+          setUploadMessage(event.message);
+        }
+
+        if (event.status === "done") {
+          progressLines.push(`✓ ${event.message}`);
+          updateUploadBubble(progressLines.join("\n"));
+          setUploadMessage(event.message);
+          setSelectedFile(null);
+        }
+
+        if (event.status === "error") {
+          progressLines.push(`✕ ${event.message}`);
+          updateUploadBubble(progressLines.join("\n"));
+          setUploadMessage(event.message);
+          throw new Error(event.message);
+        }
+      }
+    }
+  } catch (error) {
+    setUploadMessage(`Error: ${error.message}`);
+
+    setMessages((previousMessages) =>
+      previousMessages.map((message) =>
+        message.id === uploadMessageId
+          ? {
+              ...message,
+              text: `Error procesando el PDF:\n${error.message}`,
+              isProgress: false,
+            }
+          : message
+      )
+    );
+  } finally {
+    setIsUploadingFile(false);
+  }
+}
 
   async function sendQuestion() {
     const cleanQuestion = question.trim();
 
-    if (!cleanQuestion || isLoading) {
+    if (!cleanQuestion || isLoadingAnswer) {
       return;
     }
 
@@ -30,7 +157,7 @@ function App() {
 
     setMessages((previousMessages) => [...previousMessages, userMessage]);
     setQuestion("");
-    setIsLoading(true);
+    setIsLoadingAnswer(true);
 
     try {
       const response = await fetch(`${API_URL}/ask`, {
@@ -40,7 +167,7 @@ function App() {
         },
         body: JSON.stringify({
           question: cleanQuestion,
-          top_k: 5,
+          top_k: 3,
         }),
       });
 
@@ -73,7 +200,7 @@ function App() {
 
       setMessages((previousMessages) => [...previousMessages, errorMessage]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingAnswer(false);
     }
   }
 
@@ -90,7 +217,7 @@ function App() {
         <header className="chat-header">
           <div>
             <h1>Mercedes RAG Chat</h1>
-            <p>Pregunta sobre tus documentos indexados en Qdrant</p>
+            <p>Sube PDFs y pregunta sobre tus documentos indexados</p>
           </div>
 
           <div className="status-pill">
@@ -98,6 +225,40 @@ function App() {
             Local
           </div>
         </header>
+
+        <section className="upload-panel">
+          <div className="upload-info">
+            <strong>Subir documento PDF</strong>
+            <span>Se guardará en backend/documentos y se procesará automáticamente.</span>
+          </div>
+
+          <div className="upload-controls">
+            <label className="file-label">
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setSelectedFile(file);
+                  setUploadMessage(file ? file.name : "");
+                }}
+              />
+              Elegir PDF
+            </label>
+
+            <button
+              className="upload-button"
+              onClick={uploadPdf}
+              disabled={!selectedFile || isUploadingFile}
+            >
+              {isUploadingFile ? "Procesando..." : "Subir"}
+            </button>
+          </div>
+
+          {uploadMessage && (
+            <div className="upload-message">{uploadMessage}</div>
+          )}
+        </section>
 
         <main className="messages">
           {messages.map((message, index) => (
@@ -112,7 +273,9 @@ function App() {
                   message.role === "user" ? "user-bubble" : "assistant-bubble"
                 }`}
               >
-                <p>{message.text}</p>
+                <p className={message.isProgress ? "progress-text" : ""}>
+                    {message.text}
+                </p>
 
                 {message.sources.length > 0 && (
                   <div className="sources">
@@ -129,7 +292,7 @@ function App() {
             </div>
           ))}
 
-          {isLoading && (
+          {isLoadingAnswer && (
             <div className="message-row assistant-row">
               <div className="bubble assistant-bubble typing-bubble">
                 <span className="typing-dot"></span>
@@ -149,8 +312,11 @@ function App() {
             rows="3"
           />
 
-          <button onClick={sendQuestion} disabled={isLoading || !question.trim()}>
-            {isLoading ? "Enviando..." : "Enviar"}
+          <button
+            onClick={sendQuestion}
+            disabled={isLoadingAnswer || !question.trim()}
+          >
+            {isLoadingAnswer ? "Enviando..." : "Enviar"}
           </button>
         </footer>
       </div>
