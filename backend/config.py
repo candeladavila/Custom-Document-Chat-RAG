@@ -35,3 +35,9 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "documentos_rag")
 
 EMBED_BATCH_SIZE = int(os.getenv("EMBED_BATCH_SIZE", "32"))
 UPSERT_BATCH_SIZE = int(os.getenv("UPSERT_BATCH_SIZE", "64"))
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
+RAG_MAX_CONTEXT_CHARS = int(os.getenv("RAG_MAX_CONTEXT_CHARS", "12000"))

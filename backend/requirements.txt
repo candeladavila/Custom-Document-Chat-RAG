@@ -5,3 +5,7 @@ numpy
 qdrant-client
 python-dotenv
 pypdf
+google-genai
+langchain-huggingface
+fastapi
+uvicorn[standard]

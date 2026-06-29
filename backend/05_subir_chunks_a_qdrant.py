@@ -17,7 +17,7 @@ from typing import Any, Iterable
 from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
 
-from config import (
+from backend.config import (
     CHUNKS_FILE,
     EMBED_BATCH_SIZE,
     EMBEDDING_MODEL,
